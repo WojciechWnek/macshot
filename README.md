@@ -75,6 +75,82 @@ The only difference from the keyboard shortcut is that macOS's floating
 thumbnail is a system UI feature and is not reproduced; MacShot shows the
 saved file in its own window instead.
 
+## Global hotkey: Control+Shift+4
+
+Install it once:
+
+```sh
+./bin/install-hotkey
+```
+
+This compiles a tiny native listener (`tools/MacShotHotkey.swift`) with the
+system Swift compiler and installs a LaunchAgent:
+
+```
+~/Library/LaunchAgents/com.macshot.hotkey.plist
+~/Library/Application Support/MacShot/bin/MacShotHotkey
+```
+
+Pressing **Control+Shift+4** from any app launches MacShot. Its window hides
+while the native selection UI is open, then returns with the saved file. This
+is the default (`--gui`) mode.
+
+If you prefer the silent shortcut — no window, just the native selection and a
+Notification Center banner:
+
+```sh
+./bin/install-hotkey --silent
+```
+
+The listener uses Carbon's `RegisterEventHotKey`, so it does **not** need
+Accessibility permission. Logs go to `/tmp/macshot-hotkey.log`.
+
+Remove it with:
+
+```sh
+./bin/uninstall-hotkey
+```
+
+### If Control+Shift+4 does nothing
+
+1. `install-hotkey` already registers the shortcut. Remove any manual
+   assignment you added in **System Settings → Keyboard → Keyboard Shortcuts**
+   or in the **Shortcuts** app; two bindings can conflict.
+2. Press the shortcut, then check the log:
+
+   ```sh
+   tail -f /tmp/macshot-hotkey.log
+   ```
+
+   A successful press appends `MacShotHotkey: hotkey pressed`.
+
+3. If no line appears, reinstall the listener:
+
+   ```sh
+   ./bin/install-hotkey
+   ```
+
+   or choose a different key (below).
+
+### Changing the keys
+
+Edit the two constants at the top of `tools/MacShotHotkey.swift`:
+
+```swift
+private let hotKeyModifiers = UInt32(controlKey | shiftKey)
+private let hotKeyKeyCode = UInt32(kVK_ANSI_4)
+```
+
+Useful Carbon modifier constants: `controlKey`, `shiftKey`, `optionKey`,
+`cmdKey`. Key codes: `kVK_ANSI_A` … `kVK_ANSI_Z`, `kVK_ANSI_0` … `kVK_ANSI_9`,
+`kVK_Space`, `kVK_Return`, `kVK_Escape`, `kVK_F1` … `kVK_F20`.
+
+Then reinstall:
+
+```sh
+./bin/install-hotkey
+```
+
 ## Permissions
 
 Interactive capture normally works through the system screenshot service. If
@@ -104,8 +180,15 @@ image post-processing.
 macshot/
 ├── __main__.py   # python -m macshot
 ├── capture.py    # native capture, save location, naming
-└── gui.py        # Tkinter launcher window
-bin/macshot       # run without installing
+├── gui.py        # Tkinter launcher window
+└── headless.py   # silent capture used by the global hotkey
+tools/
+└── MacShotHotkey.swift   # Carbon global hotkey listener
+bin/
+├── macshot               # run the GUI without installing
+├── macshot-capture       # silent capture for the hotkey
+├── install-hotkey        # compile + install the LaunchAgent
+└── uninstall-hotkey      # remove the listener
 ```
 
 ## Tests

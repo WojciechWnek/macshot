@@ -46,7 +46,9 @@ class MacShotApp:
             outer,
             text=(
                 "Same as \u2318\u21e74: drag to select an area, "
-                "press Space for a window, press Esc to cancel."
+                "press Space for a window, press Esc to cancel.\n"
+                "Global hotkey: \u2303\u21e74 (install once with "
+                "bin/install-hotkey)."
             ),
             wraplength=430,
             justify="left",
@@ -103,6 +105,7 @@ class MacShotApp:
         self.capture_button.state(["!disabled"])
         self.root.deiconify()
         self.root.lift()
+        self.root.focus_force()
         self.root.attributes("-topmost", True)
         self.root.after(400, lambda: self.root.attributes("-topmost", False))
 

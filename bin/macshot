@@ -2,6 +2,7 @@
 # Launch MacShot from a source checkout without installing it.
 set -eu
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PYTHON="${MACSHOT_PYTHON:-python3}"
 PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONPATH
-exec python3 -m macshot "$@"
+exec "$PYTHON" -m macshot

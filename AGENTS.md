@@ -25,6 +25,11 @@ Do not change these without an explicit request:
    also returns the window.
 5. **Auto-start on launch.** `AUTO_START` in `macshot/gui.py` starts the
    selection immediately. Keep it unless asked to change the launch behavior.
+6. **Global hotkey: Control+Shift+4.** A LaunchAgent runs
+   `tools/MacShotHotkey.swift`, which registers the shortcut with Carbon and
+   executes `MACSHOT_CAPTURE`. By default that is `bin/macshot`, so the app
+   window opens; install with `--silent` to use the headless notification-only
+   path instead.
 
 ## Golden rules
 
@@ -43,10 +48,14 @@ Do not change these without an explicit request:
 
 | File | Responsibility |
 | --- | --- |
-| `macshot/capture.py` | System settings, filename generation, `screencapture -i`, cancel/error mapping, reveal in Finder |
+| `macshot/capture.py` | System settings, filename generation, `screencapture -i`, cancel/error mapping, notifications, reveal in Finder |
 | `macshot/gui.py` | Tkinter window, auto-start, worker thread, result/error UI |
+| `macshot/headless.py` | Silent capture for the global hotkey; single-instance lock; notification |
 | `macshot/__main__.py` | `python -m macshot` entry point |
-| `bin/macshot` | Source-checkout launcher (sets `PYTHONPATH`) |
+| `tools/MacShotHotkey.swift` | Carbon `RegisterEventHotKey` listener; Ctrl+Shift+4 → `MACSHOT_CAPTURE` |
+| `bin/install-hotkey` | Compiles the listener and installs/loads the LaunchAgent |
+| `bin/uninstall-hotkey` | Removes the LaunchAgent and binary |
+| `bin/macshot-capture` | Shell shim that runs `python -m macshot.headless` |
 
 Flow:
 
@@ -73,6 +82,33 @@ launch → GUI withdraws → screencapture -i <path>
   System Settings hint.
 - Two interactive captures cannot run simultaneously; the GUI's `busy` flag
   prevents that.
+
+## Global hotkey (Carbon)
+
+- `tools/MacShotHotkey.swift` registers Ctrl+Shift+4 with
+  `RegisterEventHotKey` and runs the path in `MACSHOT_CAPTURE`.
+- The installer chooses the action:
+  - `./bin/install-hotkey` → `bin/macshot` (GUI window, default)
+  - `./bin/install-hotkey --silent` → `bin/macshot-capture` (headless,
+    notification only)
+- Carbon hotkeys do **not** require Accessibility permission. Do not replace
+  this with a `CGEventTap` (which does) unless explicitly asked.
+- Carbon delivers hotkey events only while the main thread runs its event loop.
+  Use `RunCurrentEventLoop(-1.0)`; `RunApplicationEventLoop` is 32-bit-only and
+  will not compile.
+- The listener must run in the user's Aqua session. The installer bootstraps it
+  into `gui/<uid>` from a LaunchAgent, so it starts at login.
+- `KeepAlive` is on. If the shortcut is already taken,
+  `RegisterEventHotKey` fails and the log at `/tmp/macshot-hotkey.log` shows it;
+  launchd retries every `ThrottleInterval` seconds.
+- The listener executes the capture script directly (no shell). The script
+  uses `MACSHOT_PYTHON` because launchd's `PATH` does not include Homebrew or
+  python.org installs.
+- `macshot/headless.py` holds a `flock` on
+  `~/Library/Application Support/MacShot/hotkey.lock` so rapid presses cannot
+  open two selection UIs.
+- Changing the key means editing `hotKeyModifiers` / `hotKeyKeyCode` in the
+  Swift file and rerunning `bin/install-hotkey`.
 
 ## Save location and naming
 
@@ -108,6 +144,11 @@ configured type.
 # Run the app
 ./bin/macshot
 python3 -m macshot
+
+# Install/remove the global hotkey (Control+Shift+4)
+./bin/install-hotkey           # opens the MacShot window
+./bin/install-hotkey --silent  # notification only, no window
+./bin/uninstall-hotkey
 
 # Install as a command
 python3 -m pip install .

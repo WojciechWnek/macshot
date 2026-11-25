@@ -1,0 +1,14 @@
+#!/bin/sh
+# Remove the global hotkey listener.
+set -eu
+
+LABEL="com.macshot.hotkey"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+BINARY="$HOME/Library/Application Support/MacShot/bin/MacShotHotkey"
+UID_VALUE=$(id -u)
+
+launchctl bootout "gui/$UID_VALUE/$LABEL" 2>/dev/null || true
+launchctl unload -w "$PLIST" 2>/dev/null || true
+
+rm -f "$PLIST" "$BINARY" /tmp/macshot-hotkey.log
+echo "MacShot global hotkey removed."

@@ -1,0 +1,83 @@
+#!/bin/sh
+# Install the global hotkey listener (Control+Shift+4).
+set -eu
+
+PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+APP_SUPPORT="$HOME/Library/Application Support/MacShot"
+BIN_DIR="$APP_SUPPORT/bin"
+BINARY="$BIN_DIR/MacShotHotkey"
+PLIST="$HOME/Library/LaunchAgents/com.macshot.hotkey.plist"
+LABEL="com.macshot.hotkey"
+
+MODE="${1:-gui}"
+case "$MODE" in
+    --silent|silent)
+        CAPTURE="$PROJECT_DIR/bin/macshot-capture"
+        MODE_LABEL="silent capture + notification"
+        ;;
+    --gui|gui|"")
+        CAPTURE="$PROJECT_DIR/bin/macshot"
+        MODE_LABEL="MacShot window"
+        ;;
+    *)
+        echo "usage: $0 [--gui|--silent]" >&2
+        exit 2
+        ;;
+esac
+
+PYTHON=$(command -v python3 || true)
+SWIFTC=$(command -v swiftc || true)
+
+if [ -z "$PYTHON" ]; then
+    echo "error: python3 was not found" >&2
+    exit 1
+fi
+if [ -z "$SWIFTC" ]; then
+    echo "error: swiftc was not found. Install the Xcode Command Line Tools:" >&2
+    echo "  xcode-select --install" >&2
+    exit 1
+fi
+
+mkdir -p "$BIN_DIR" "$HOME/Library/LaunchAgents"
+chmod +x "$PROJECT_DIR/bin/macshot" "$CAPTURE"
+
+echo "Compiling the hotkey listener..."
+"$SWIFTC" -O "$PROJECT_DIR/tools/MacShotHotkey.swift" -o "$BINARY"
+
+echo "Writing the LaunchAgent..."
+"$PYTHON" - "$PLIST" "$BINARY" "$CAPTURE" "$PYTHON" <<'PY'
+import plistlib
+import sys
+
+plist_path, binary, capture, python = sys.argv[1:5]
+payload = {
+    "Label": "com.macshot.hotkey",
+    "ProgramArguments": [binary],
+    "RunAtLoad": True,
+    "KeepAlive": True,
+    "ThrottleInterval": 10,
+    "ProcessType": "Interactive",
+    "EnvironmentVariables": {
+        "MACSHOT_CAPTURE": capture,
+        "MACSHOT_PYTHON": python,
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+    },
+    "StandardOutPath": "/tmp/macshot-hotkey.log",
+    "StandardErrorPath": "/tmp/macshot-hotkey.log",
+}
+with open(plist_path, "wb") as handle:
+    plistlib.dump(payload, handle)
+PY
+
+UID_VALUE=$(id -u)
+launchctl bootout "gui/$UID_VALUE/$LABEL" 2>/dev/null || true
+launchctl bootstrap "gui/$UID_VALUE" "$PLIST" 2>/dev/null || launchctl load -w "$PLIST"
+launchctl enable "gui/$UID_VALUE/$LABEL" 2>/dev/null || true
+launchctl kickstart -k "gui/$UID_VALUE/$LABEL" 2>/dev/null || true
+
+echo
+echo "MacShot global hotkey installed: Control+Shift+4"
+echo "  action  : $MODE_LABEL"
+echo "  listener: $BINARY"
+echo "  launchd : $PLIST"
+echo "  log     : /tmp/macshot-hotkey.log"
