@@ -91,15 +91,14 @@ system Swift compiler and installs a LaunchAgent:
 ~/Library/Application Support/MacShot/bin/MacShotHotkey
 ```
 
-Pressing **Control+Shift+4** from any app launches MacShot. Its window hides
-while the native selection UI is open, then returns with the saved file. This
-is the default (`--gui`) mode.
+Pressing **Control+Shift+4** from any app captures straight to the normal
+screenshot folder. No window, no Dock icon, no notification banner — the
+listener just runs the native selection and exits. This is the default mode.
 
-If you prefer the silent shortcut — no window, just the native selection and a
-Notification Center banner:
+If you'd rather have the MacShot window open with the result:
 
 ```sh
-./bin/install-hotkey --silent
+./bin/install-hotkey --gui
 ```
 
 The listener uses Carbon's `RegisterEventHotKey`, so it does **not** need

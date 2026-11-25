@@ -27,9 +27,9 @@ Do not change these without an explicit request:
    selection immediately. Keep it unless asked to change the launch behavior.
 6. **Global hotkey: Control+Shift+4.** A LaunchAgent runs
    `tools/MacShotHotkey.swift`, which registers the shortcut with Carbon and
-   executes `MACSHOT_CAPTURE`. By default that is `bin/macshot`, so the app
-   window opens; install with `--silent` to use the headless notification-only
-   path instead.
+   executes `MACSHOT_CAPTURE`. By default that is `bin/macshot-capture`, so the
+   capture runs silently in the background. Install with
+   `--gui` to open the app window instead.
 
 ## Golden rules
 
@@ -48,9 +48,9 @@ Do not change these without an explicit request:
 
 | File | Responsibility |
 | --- | --- |
-| `macshot/capture.py` | System settings, filename generation, `screencapture -i`, cancel/error mapping, notifications, reveal in Finder |
+| `macshot/capture.py` | System settings, filename generation, `screencapture -i`, cancel/error mapping, reveal in Finder |
 | `macshot/gui.py` | Tkinter window, auto-start, worker thread, result/error UI |
-| `macshot/headless.py` | Silent capture for the global hotkey; single-instance lock; notification |
+| `macshot/headless.py` | Silent capture for the global hotkey; single-instance lock; errors go to stderr |
 | `macshot/__main__.py` | `python -m macshot` entry point |
 | `tools/MacShotHotkey.swift` | Carbon `RegisterEventHotKey` listener; Ctrl+Shift+4 → `MACSHOT_CAPTURE` |
 | `bin/install-hotkey` | Compiles the listener and installs/loads the LaunchAgent |
@@ -88,9 +88,8 @@ launch → GUI withdraws → screencapture -i <path>
 - `tools/MacShotHotkey.swift` registers Ctrl+Shift+4 with
   `RegisterEventHotKey` and runs the path in `MACSHOT_CAPTURE`.
 - The installer chooses the action:
-  - `./bin/install-hotkey` → `bin/macshot` (GUI window, default)
-  - `./bin/install-hotkey --silent` → `bin/macshot-capture` (headless,
-    notification only)
+  - `./bin/install-hotkey` → `bin/macshot-capture` (background, default)
+  - `./bin/install-hotkey --gui` → `bin/macshot` (opens the app window)
 - Carbon hotkeys do **not** require Accessibility permission. Do not replace
   this with a `CGEventTap` (which does) unless explicitly asked.
 - Carbon delivers hotkey events only while the main thread runs its event loop.
@@ -146,8 +145,8 @@ configured type.
 python3 -m macshot
 
 # Install/remove the global hotkey (Control+Shift+4)
-./bin/install-hotkey           # opens the MacShot window
-./bin/install-hotkey --silent  # notification only, no window
+./bin/install-hotkey           # background capture, no window (default)
+./bin/install-hotkey --gui     # open the MacShot window instead
 ./bin/uninstall-hotkey
 
 # Install as a command

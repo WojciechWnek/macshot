@@ -9,13 +9,13 @@ BINARY="$BIN_DIR/MacShotHotkey"
 PLIST="$HOME/Library/LaunchAgents/com.macshot.hotkey.plist"
 LABEL="com.macshot.hotkey"
 
-MODE="${1:-gui}"
+MODE="${1:-silent}"
 case "$MODE" in
-    --silent|silent)
+    --silent|silent|"")
         CAPTURE="$PROJECT_DIR/bin/macshot-capture"
-        MODE_LABEL="silent capture + notification"
+        MODE_LABEL="background capture + notification"
         ;;
-    --gui|gui|"")
+    --gui|gui)
         CAPTURE="$PROJECT_DIR/bin/macshot"
         MODE_LABEL="MacShot window"
         ;;

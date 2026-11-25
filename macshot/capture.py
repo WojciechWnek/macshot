@@ -23,7 +23,6 @@ from pathlib import Path
 SCREENCAPTURE = "/usr/sbin/screencapture"
 DEFAULTS = "/usr/bin/defaults"
 OPEN = "/usr/bin/open"
-OSASCRIPT = "/usr/bin/osascript"
 
 SCREEN_RECORDING_SETTINGS_URL = (
     "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
@@ -183,26 +182,3 @@ def reveal_in_finder(path: str | Path) -> None:
 
 def open_screen_recording_settings() -> None:
     subprocess.run([OPEN, SCREEN_RECORDING_SETTINGS_URL], check=False)
-
-
-def _applescript_string(value: str) -> str:
-    """Quote text for safe embedding in AppleScript source."""
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def notify(title: str, message: str) -> None:
-    """Show a Notification Center banner.  Failures are ignored."""
-    script = (
-        f"display notification {_applescript_string(message)} "
-        f"with title {_applescript_string(title)}"
-    )
-    try:
-        subprocess.run(
-            [OSASCRIPT, "-e", script],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        pass

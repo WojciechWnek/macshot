@@ -1,19 +1,26 @@
 """Silent capture entry point used by the global hotkey.
 
-This never opens a window.  It runs the same interactive selection as the GUI,
-then posts a Notification Center banner with the saved file name.
+This never opens a window, never posts a notification, and never touches the
+Dock.  It runs the same interactive selection as the GUI and exits.  Problems
+are written to stderr, which the LaunchAgent redirects to
+``/tmp/macshot-hotkey.log``.
 """
 
 from __future__ import annotations
 
 import fcntl
+import sys
 from pathlib import Path
 
-from .capture import CaptureCancelled, CaptureError, notify, take_screenshot
+from .capture import CaptureCancelled, CaptureError, take_screenshot
 
 LOCK_PATH = (
     Path.home() / "Library" / "Application Support" / "MacShot" / "hotkey.lock"
 )
+
+
+def _log(message: str) -> None:
+    print(f"MacShot: {message}", file=sys.stderr, flush=True)
 
 
 def _acquire_lock():
@@ -45,15 +52,15 @@ def main() -> int:
         message = str(exc)
         if exc.hint:
             message = f"{message} {exc.hint}"
-        notify("Screenshot failed", message)
+        _log(message)
         return 1
-    except Exception as exc:  # noqa: BLE001 - reported via notification
-        notify("Screenshot failed", str(exc))
+    except Exception as exc:  # noqa: BLE001 - only logged, never shown
+        _log(str(exc))
         return 1
     finally:
         lock.close()
 
-    notify("Screenshot saved", str(path))
+    _log(f"saved {path}")
     return 0
 
 
